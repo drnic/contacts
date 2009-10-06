@@ -1,14 +1,3 @@
-# Use ActiveSupport's version of JSON if available
-if Object.const_defined?('ActiveSupport') && ActiveSupport.const_defined?('JSON')
-  class JSON
-    def self.parse(i)
-      ActiveSupport::JSON.decode(i)
-    end
-  end
-else
-  require 'json/add/rails'
-end
-
 class Contacts
   class Gmail < Base
     URL                 = "https://mail.google.com/mail/"
@@ -16,6 +5,17 @@ class Contacts
     LOGIN_REFERER_URL   = "https://www.google.com/accounts/ServiceLogin?service=mail&passive=true&rm=false&continue=http%3A%2F%2Fmail.google.com%2Fmail%3Fui%3Dhtml%26zy%3Dl&ltmpl=yj_blanco&ltmplcache=2&hl=en"
     CONTACT_LIST_URL    = "https://mail.google.com/mail/contacts/data/contacts?thumb=true&show=ALL&enums=true&psort=Name&max=10000&out=js&rf=&jsx=true"
     PROTOCOL_ERROR      = "Gmail has changed its protocols, please upgrade this library first. If that does not work, dive into the code and submit a patch at http://github.com/cardmagic/contacts"
+
+    def self.parse_json( string )
+      if Object.const_defined?('ActiveSupport') and
+         ActiveSupport.const_defined?('JSON')
+        ActiveSupport::JSON.decode( string )
+      elsif Object.const_defined?('JSON')
+        JSON.parse( string )
+      else
+        raise 'Contacts requires JSON or Rails (with ActiveSupport::JSON)'
+      end
+    end
     
     def real_connect
       postdata =  "ltmpl=yj_blanco"
@@ -66,7 +66,7 @@ class Contacts
       data.gsub!(/\t/, ' ') # tabs in the note field cause errors with JSON.parse
       data.gsub!(/[\t\x00-\x1F]/, " ") # strip control characters
 
-      @contacts = JSON.parse(data)['Body']['Contacts'] || {}
+      @contacts = self.class.parse_json(data)['Body']['Contacts'] || {}
 
       # Determine in which format to return the data.
       
